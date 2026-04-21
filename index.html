@@ -338,6 +338,13 @@
   let fallbackIntervalId = null;
   let fallbackAudioCtx = null;
   const activeFallbackNodes = new Set();
+  const HAPPY_BIRTHDAY_NOTES_HZ = [392, 392, 440, 392, 523, 494];
+  const NOTE_INTERVAL_MS = 450;
+  const ENVELOPE_START_GAIN = 0.001;
+  const ENVELOPE_PEAK_GAIN = 0.2;
+  const ENVELOPE_ATTACK_SECONDS = 0.03;
+  const ENVELOPE_RELEASE_SECONDS = 0.35;
+  const NOTE_DURATION_SECONDS = 0.36;
 
   function startFallbackMusic() {
     if (fallbackStarted) return;
@@ -345,17 +352,16 @@
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     fallbackAudioCtx = new AudioCtx();
-    const notes = [392, 392, 440, 392, 523, 494];
     let idx = 0;
     fallbackIntervalId = setInterval(() => {
       const osc = fallbackAudioCtx.createOscillator();
       const gain = fallbackAudioCtx.createGain();
       activeFallbackNodes.add({ osc, gain });
       osc.type = "sine";
-      osc.frequency.value = notes[idx % notes.length];
-      gain.gain.setValueAtTime(0.001, fallbackAudioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.2, fallbackAudioCtx.currentTime + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, fallbackAudioCtx.currentTime + 0.35);
+      osc.frequency.value = HAPPY_BIRTHDAY_NOTES_HZ[idx % HAPPY_BIRTHDAY_NOTES_HZ.length];
+      gain.gain.setValueAtTime(ENVELOPE_START_GAIN, fallbackAudioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(ENVELOPE_PEAK_GAIN, fallbackAudioCtx.currentTime + ENVELOPE_ATTACK_SECONDS);
+      gain.gain.exponentialRampToValueAtTime(ENVELOPE_START_GAIN, fallbackAudioCtx.currentTime + ENVELOPE_RELEASE_SECONDS);
       osc.connect(gain);
       gain.connect(fallbackAudioCtx.destination);
       osc.onended = () => {
@@ -369,9 +375,9 @@
         }
       };
       osc.start();
-      osc.stop(fallbackAudioCtx.currentTime + 0.36);
+      osc.stop(fallbackAudioCtx.currentTime + NOTE_DURATION_SECONDS);
       idx++;
-    }, 450);
+    }, NOTE_INTERVAL_MS);
   }
 
   function startMusic() {
