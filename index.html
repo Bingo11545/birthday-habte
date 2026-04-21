@@ -337,8 +337,13 @@
   let userInteracted = false;
   let fallbackIntervalId = null;
   let fallbackAudioCtx = null;
-  const activeFallbackNodes = new Set();
-  const HAPPY_BIRTHDAY_NOTES_HZ = [392, 392, 440, 392, 523, 494];
+  const activeFallbackNodes = new Map();
+  const HAPPY_BIRTHDAY_NOTES_HZ = [
+    392, 392, 440, 392, 523, 494,
+    392, 392, 440, 392, 587, 523,
+    392, 392, 784, 659, 523, 494, 440,
+    698, 698, 659, 523, 587, 523
+  ];
   const NOTE_INTERVAL_MS = 450;
   const ENVELOPE_START_GAIN = 0.001;
   const ENVELOPE_PEAK_GAIN = 0.2;
@@ -356,7 +361,7 @@
     fallbackIntervalId = setInterval(() => {
       const osc = fallbackAudioCtx.createOscillator();
       const gain = fallbackAudioCtx.createGain();
-      activeFallbackNodes.add({ osc, gain });
+      activeFallbackNodes.set(osc, gain);
       osc.type = "sine";
       osc.frequency.value = HAPPY_BIRTHDAY_NOTES_HZ[idx % HAPPY_BIRTHDAY_NOTES_HZ.length];
       gain.gain.setValueAtTime(ENVELOPE_START_GAIN, fallbackAudioCtx.currentTime);
@@ -367,12 +372,7 @@
       osc.onended = () => {
         osc.disconnect();
         gain.disconnect();
-        for (const node of activeFallbackNodes) {
-          if (node.osc === osc) {
-            activeFallbackNodes.delete(node);
-            break;
-          }
-        }
+        activeFallbackNodes.delete(osc);
       };
       osc.start();
       osc.stop(fallbackAudioCtx.currentTime + NOTE_DURATION_SECONDS);
@@ -420,10 +420,10 @@
 
   window.addEventListener("beforeunload", () => {
     if (fallbackIntervalId) clearInterval(fallbackIntervalId);
-    for (const node of activeFallbackNodes) {
-      try { node.osc.stop(); } catch (_) {}
-      try { node.osc.disconnect(); } catch (_) {}
-      try { node.gain.disconnect(); } catch (_) {}
+    for (const [osc, gain] of activeFallbackNodes) {
+      try { osc.stop(); } catch (_) { /* ignore: node may already be stopped */ }
+      try { osc.disconnect(); } catch (_) { /* ignore: node may already be disconnected */ }
+      try { gain.disconnect(); } catch (_) { /* ignore: node may already be disconnected */ }
     }
     activeFallbackNodes.clear();
     if (fallbackAudioCtx && fallbackAudioCtx.state !== "closed") {
